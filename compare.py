@@ -36,6 +36,98 @@ def copyStateDict(state_dict):
 def str2bool(v):
     return v.lower() in ("yes", "y", "true", "t", "1")
 
+def detect_lp_num_o(img0, opt, model, half, webcam, device):
+    out, source, view_img, save_txt, imgsz, save_img= \
+        opt.output, img0, False, False, opt.img_size, True
+    imgsz = check_img_size(imgsz, s=model.stride.max())  # check img_size
+    if half:
+        model.half()  # to FP16
+
+    # Second-stage classifier
+    classify = False
+    if classify:
+        modelc = load_classifier(name='resnet101', n=2)  # initialize
+        modelc.load_state_dict(torch.load('weights/resnet101.pt', map_location=device)['model'])  # load weights
+        modelc.to(device).eval()
+
+    # Get names and colors
+    names = model.module.names if hasattr(model, 'module') else model.names
+    # 固定車牌為紅色
+    colors = [[0, 0, 255]]
+
+    # Run inference
+    t0 = time.time()
+    # Padded resize
+#     ret, img0 = cv2.threshold(img0, 110, 255, cv2.THRESH_BINARY)
+#     img0 = cv2.GaussianBlur(img0, (3, 3), 0)
+#     cv2.imwrite('./target/result.jpg', img0)
+    img = letterbox(img0, new_shape=imgsz)[0]
+
+    # Convert
+    img = img[:, :, ::-1].transpose(2, 0, 1)  # BGR to RGB, to 3x416x416
+    img = np.ascontiguousarray(img)
+    vid_cap = None
+    img = torch.from_numpy(img).to(device)
+    img = img.half() if half else img.float()  # uint8 to fp16/32
+    img /= 255.0  # 0 - 255 to 0.0 - 1.0
+    if img.ndimension() == 3:
+        img = img.unsqueeze(0)
+    
+    # Inference
+    t1 = time_synchronized()
+    pred = model(img, augment=opt.augment)[0]
+
+    # Apply NMS
+    pred = non_max_suppression(pred, opt.conf_thres, opt.iou_thres, classes=opt.classes, agnostic=opt.agnostic_nms)
+    t2 = time_synchronized()
+
+    # Apply Classifier
+    if classify:
+        pred = apply_classifier(pred, modelc, img, img0)
+
+    # Process detections
+    for i, det in enumerate(pred):  # detections per image
+        gn = torch.tensor(img0.shape)[[1, 0, 1, 0]]  # normalization gain whwh
+        if det is not None and len(det):
+            # Rescale boxes from img_size to im0 size
+            det[:, :4] = scale_coords(img.shape[2:], det[:, :4], img0.shape).round()
+
+            # Print results
+#             for c in det[:, -1].unique():
+#                 n = (det[:, -1] == c).sum()  # detections per class
+#                 s += '%g %ss, ' % (n, names[int(c)])  # add to string
+
+            # Write results
+            r_dict = {}
+            result = []
+            conf_l = []
+            for *xyxy, conf, cls in reversed(det):
+                # save target image
+                target_img = img0[int(xyxy[1]):int(xyxy[3]), int(xyxy[0]):int(xyxy[2])]
+                # cv2.imwrite('./target/lp.jpg'.format(int(xyxy[1])), target_img)
+                if save_txt:  # Write to file
+                    xywh = (xyxy2xywh(torch.tensor(xyxy).view(1, 4)) / gn).view(-1).tolist()  # normalized xywh
+
+                if save_img or view_img:  # Add bbox to image
+                    label = '%s %.2f' % (names[int(cls)], conf)
+#                     plot_one_box(xyxy, img0, label=label, color=colors[0], line_thickness=3)
+                    result.append((float(xyxy[0]), names[int(cls)]))
+                    conf_l.append(conf)
+            result_l = [s[1] for s in sorted(result, key=lambda x: x[0])]
+            result_s = ''
+            conf_avg = sum(conf_l) / len(conf_l)
+            for r in result_l:
+                result_s += r
+            print(result_s)
+            print(conf_avg)
+            if len(result_s) in [5, 6, 7] and conf_avg > 0.80:
+                print('-------------------------------------' + result_s)
+                print('-------------------------------------', conf_avg)
+                return result_s, conf_avg
+    fake_lp = ''
+    fake_conf = 0.0
+    return fake_lp, fake_conf
+
 def detect_lp_num(img0, opt, model, half, webcam, device):
     out, source, view_img, save_txt, imgsz, save_img= \
         opt.output, img0, False, False, opt.img_size, True
@@ -137,7 +229,7 @@ def detect_lp_num(img0, opt, model, half, webcam, device):
     fake_conf = 0.0
     return fake_lp, fake_conf
 
-def detect_lp(opt, model, model_1, half, webcam, device, net):
+def detect_lp(opt, model, model_1, model_2, half, webcam, device, net):
     out, source, view_img, save_txt, imgsz = \
         opt.output, opt.source, opt.view_img, opt.save_txt, opt.img_size
     imgsz = check_img_size(imgsz, s=model.stride.max())  # check img_size
@@ -163,7 +255,8 @@ def detect_lp(opt, model, model_1, half, webcam, device, net):
 
     # Get names and colors
     names = model.module.names if hasattr(model, 'module') else model.names
-    colors = [[random.randint(0, 255) for _ in range(3)] for _ in range(len(names))]
+    # colors = [[random.randint(0, 255) for _ in range(3)] for _ in range(len(names))]
+    colors = [[0, 0, 255]]
 
     # Run inference
     t0 = time.time()
@@ -211,6 +304,7 @@ def detect_lp(opt, model, model_1, half, webcam, device, net):
                 for *xyxy, conf, cls in reversed(det):
                     # save target image
                     if int(cls) == 0:
+                        o_img = im0[int(xyxy[1]):int(xyxy[3]), int(xyxy[0]):int(xyxy[2])]
                         target_img = im0[int(xyxy[1]):int(xyxy[3]), int(xyxy[0]):int(xyxy[2])]
                         target_img = lp_pre(net, target_img, opt)
                         if target_img is None:
@@ -233,6 +327,7 @@ def detect_lp(opt, model, model_1, half, webcam, device, net):
     #                     print(m)
     #                     print('im0_0', im0.shape)
                         label_num, conf_num = detect_lp_num(img0=target_img, opt=opt, model=model_1, half=half, webcam=webcam, device=device)
+                        label_num_o, conf_num_o = detect_lp_num_o(img0=o_img, opt=opt, model=model_2, half=half, webcam=webcam, device=device)
     #                     print('im0_1', im0.shape)
                         if save_txt:  # Write to file
                             xywh = (xyxy2xywh(torch.tensor(xyxy).view(1, 4)) / gn).view(-1).tolist()  # normalized xywh
@@ -240,11 +335,17 @@ def detect_lp(opt, model, model_1, half, webcam, device, net):
                                 f.write(('%g ' * 5 + '\n') % (cls, *xywh))  # label format
 
                         if save_img or view_img:  # Add bbox to image
+                            im0_o = im0.copy()
                             if len(label_num) >= 5:
                                 label = '%s %.2f' % (label_num, conf_num)
                             else:
                                 label = '%s %.2f' % (names[int(cls)], conf)
-                            plot_one_box(xyxy, im0, label=label, color=colors[int(cls)], line_thickness=3)
+                            plot_one_box(xyxy, im0, label=label, color=colors[0], line_thickness=3)
+                            if len(label_num_o) >= 5:
+                                label_o = '%s %.2f' % (label_num_o, conf_num_o)
+                            else:
+                                label_o = '%s %.2f' % (names[int(cls)], conf)
+                            plot_one_box(xyxy, im0_o, label=label_o, color=colors[0], line_thickness=3)
                             # cv2.imwrite('./target/lp_detect_{}.jpg'.format(int(xyxy[1])), im0)
 
             # Print time (inference + NMS)
@@ -253,7 +354,16 @@ def detect_lp(opt, model, model_1, half, webcam, device, net):
 
             # Stream results
             if view_img:
-                cv2.imshow(p, im0)
+                cv2.namedWindow(p, cv2.WINDOW_AUTOSIZE)
+                imS = cv2.resize(im0, (640, 360)) 
+                cv2.imshow(p, imS)
+                cv2.moveWindow(p, 0, 0)
+                cv2.namedWindow('o', cv2.WINDOW_AUTOSIZE)
+                im0_o = cv2.resize(im0_o, (640, 360)) 
+                cv2.imshow('o', im0_o)
+                cv2.moveWindow('o', 640, 360)
+                cv2.waitKey(0)
+                cv2.destroyAllWindows()
                 if cv2.waitKey(1) == ord('q'):  # q to quit
                     raise StopIteration
 
@@ -298,8 +408,8 @@ def set_model(save_img=False):
 
     net.eval()
 
-    out, source, weights_0, weights_1, view_img, save_txt, imgsz = \
-        opt.output, opt.source, opt.weights_0, opt.weights_1, opt.view_img, opt.save_txt, opt.img_size
+    out, source, weights_0, weights_1, weights_2, view_img, save_txt, imgsz = \
+        opt.output, opt.source, opt.weights_0, opt.weights_1, opt.weights_2, opt.view_img, opt.save_txt, opt.img_size
     webcam = source == '0' or source.startswith('rtsp') or source.startswith('http') or source.endswith('.txt')
 
     # Initialize
@@ -313,7 +423,8 @@ def set_model(save_img=False):
     # Load model
     model_0 = attempt_load(weights_0, map_location=device)  # lp model
     model_1 = attempt_load(weights_1, map_location=device)  # lp content model
-    detect_lp(opt=opt, model=model_0, model_1=model_1, half=half, webcam=webcam, device=device, net=net)
+    model_2 = attempt_load(weights_2, map_location=device) 
+    detect_lp(opt=opt, model=model_0, model_1=model_1, model_2=model_2, half=half, webcam=webcam, device=device, net=net)
     
 
 
@@ -321,6 +432,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--weights_0', nargs='+', type=str, default='weights/lp_1125.pt', help='model.pt path(s)')
     parser.add_argument('--weights_1', nargs='+', type=str, default='weights/lp_num_new_best.pt', help='model.pt path(s)')
+    parser.add_argument('--weights_2', nargs='+', type=str, default='weights/lp_num_best_b.pt', help='model.pt path(s)')
     parser.add_argument('--source', type=str, default='inference/images', help='source')  # file/folder, 0 for webcam
     parser.add_argument('--output', type=str, default='inference/output', help='output folder')  # output folder
     parser.add_argument('--img-size', type=int, default=640, help='inference size (pixels)')

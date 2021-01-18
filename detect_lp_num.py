@@ -200,7 +200,7 @@ def detect_lp(opt, model, model_1, half, webcam, device):
     #                     # slope
     #                     m = slope(x1, y1, x2, y2)
     #                     print(m)
-                        cv2.imwrite('./target/lp.jpg'.format(int(xyxy[1])), target_img)
+                        # cv2.imwrite('./target/lp.jpg'.format(int(xyxy[1])), target_img)
     #                     print('im0_0', im0.shape)
                         label_num, conf_num = detect_lp_num(img0=target_img, opt=opt, model=model_1, half=half, webcam=webcam, device=device)
     #                     print('im0_1', im0.shape)
