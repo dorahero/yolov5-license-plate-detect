@@ -118,7 +118,7 @@ Pygments==2.7.2
 PyHamcrest==2.0.2
 pylint==2.6.0
 pymongo==3.11.2
-PyMySQL==0.10.1
+PyMySQL==1.0.2
 pyOpenSSL==20.0.1
 pyparsing==2.4.7
 pyrsistent==0.17.3
