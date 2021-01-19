@@ -304,28 +304,13 @@ def detect_lp(opt, model, model_1, model_2, half, webcam, device, net):
                 for *xyxy, conf, cls in reversed(det):
                     # save target image
                     if int(cls) == 0:
-                        o_img = im0[int(xyxy[1]):int(xyxy[3]), int(xyxy[0]):int(xyxy[2])]
+                        o_img = im0[int(xyxy[1]):int(xyxy[3]), int(xyxy[0]):int(xyxy[2])].copy()
                         target_img = im0[int(xyxy[1]):int(xyxy[3]), int(xyxy[0]):int(xyxy[2])]
                         target_img = lp_pre(net, target_img, opt)
                         if target_img is None:
                             continue
                         # else:
                         #     cv2.imwrite('./target/lp{}.jpg'.format(int(xyxy[1])), target_img)
-                        # ratio
-#                         print(target_img.shape)
-#                         print(target_img.shape[0]*target_img.shape[1])
-                        # print((target_img.shape[0]*target_img.shape[1])/(im0.shape[0]*im0.shape[1]))
-    #                     print(target_img.shape)
-    #                     print(((int(xyxy[0])+int(xyxy[2]))/2, (int(xyxy[1]))))
-    #                     x1, y1 = ((int(xyxy[0])+int(xyxy[2]))/2, (int(xyxy[1])))
-    #                     im_shape = im0.shape
-    #                     print('imhape: ', im_shape)
-    #                     print(((im_shape[1]/2), 0))
-    #                     x2, y2 = ((im_shape[1]/2), 0)
-    #                     # slope
-    #                     m = slope(x1, y1, x2, y2)
-    #                     print(m)
-    #                     print('im0_0', im0.shape)
                         label_num, conf_num = detect_lp_num(img0=target_img, opt=opt, model=model_1, half=half, webcam=webcam, device=device)
                         label_num_o, conf_num_o = detect_lp_num_o(img0=o_img, opt=opt, model=model_2, half=half, webcam=webcam, device=device)
     #                     print('im0_1', im0.shape)
@@ -355,13 +340,13 @@ def detect_lp(opt, model, model_1, model_2, half, webcam, device, net):
             # Stream results
             if view_img:
                 cv2.namedWindow(p, cv2.WINDOW_AUTOSIZE)
-                imS = cv2.resize(im0, (640, 360)) 
+                imS = cv2.resize(im0, (960, 540)) 
                 cv2.imshow(p, imS)
                 cv2.moveWindow(p, 0, 0)
                 cv2.namedWindow('o', cv2.WINDOW_AUTOSIZE)
-                im0_o = cv2.resize(im0_o, (640, 360)) 
+                im0_o = cv2.resize(im0_o, (960, 540)) 
                 cv2.imshow('o', im0_o)
-                cv2.moveWindow('o', 640, 0)
+                cv2.moveWindow('o', 960, 0)
                 cv2.waitKey(0)
                 cv2.destroyAllWindows()
                 if cv2.waitKey(1) == ord('q'):  # q to quit
