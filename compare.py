@@ -361,7 +361,7 @@ def detect_lp(opt, model, model_1, model_2, half, webcam, device, net):
                 cv2.namedWindow('o', cv2.WINDOW_AUTOSIZE)
                 im0_o = cv2.resize(im0_o, (640, 360)) 
                 cv2.imshow('o', im0_o)
-                cv2.moveWindow('o', 640, 360)
+                cv2.moveWindow('o', 640, 0)
                 cv2.waitKey(0)
                 cv2.destroyAllWindows()
                 if cv2.waitKey(1) == ord('q'):  # q to quit
