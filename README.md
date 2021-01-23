@@ -5,7 +5,7 @@
 - [x] preprocessing of data with craft and opencv
 
 # Usage CRAFT, YOLOv5:
-CRAFT is an open source from [here](https://github.com/clovaai/CRAFT-pytorch) \n
+CRAFT is an open source from [here](https://github.com/clovaai/CRAFT-pytorch)  
 YOLOv5 is an open source from [here](https://github.com/ultralytics/yolov5) 
 
 ## How to use
