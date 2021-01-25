@@ -1,4 +1,4 @@
-# licencse plate detect
+# licencse plate recognition
 - [x] yolov5
 - [ ] train self licencse plate model
 - [ ] train self licencse plate detect model
@@ -16,3 +16,9 @@ python detect_lp_num_new.py --source $DATA_PATH
 ```shell
 python compare.py --source $DATA_PATH --view-img
 ```
+
+# Preprocessing
+Before preprocessing  
+![](./doc/demo.png )
+After preprocessing  
+![](./doc/demo.jpg )
