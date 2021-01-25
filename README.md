@@ -19,6 +19,6 @@ python compare.py --source $DATA_PATH --view-img
 
 # Preprocessing
 Before preprocessing  
-![](./doc/demo.png )
+![](./doc/demo.png )  
 After preprocessing  
-![](./doc/demo.jpg )
+![](./doc/demo.jpg )  
